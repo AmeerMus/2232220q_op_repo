@@ -1,0 +1,12 @@
+#!/bin/bash
+apt-get update
+puppet resource package git ensure=present
+
+puppet resource package apache2 ensure=present
+puppet resource service apache2 ensure=running
+
+puppet resource file /tmp/2232220q/research ensure=absent force=true
+puppet resource file /tmp/2232220q/research ensure=directory
+
+
+cd /tmp/2232220q/2232220q_op_repo/
