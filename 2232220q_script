@@ -10,4 +10,5 @@ puppet resource file /tmp/2232220q/research ensure=directory
 
 
 cd /tmp/2232220q/2232220q_op_repo/
-git clone
+git clone https://github.com/AmeerMus/2232220q_op_repo/blob/main/2232220q_script
+cp -p /tmp/2232220q/2232220q_op_repo/2232220q_index.html /var/www/html
