@@ -1,119 +1,126 @@
 pipeline {
-      agent any
-      stages {
-          stage('2232220q-op-s1') {
-          steps {
-            script {
+    agent any
+    stages {
+        stage('2232220q_OP_S1') {
+            steps {
+                script {
+                    echo "Removing old backup image..."
+                    sh 'docker image rm -f 2232220q_uatsvr_image || true'
 
-    		echo "Removing old backup image..."
-    		sh 'docker image rm -f 2232220q_uatsvr_image || true'
+                    echo "Creating new backup image..."
+                    sh 'docker commit 2232220q_uatsvr 2232220q_uatsvr_image'
 
-   		echo "Creating new backup image..."
-    		sh 'docker commit 2232220q_uatsvr 2232220q_uatsvr_image'
+                    sh '''#!/bin/bash
+                        puppet resource file /tmp/2232220q ensure=absent force=true;
+                        puppet resource file /tmp/2232220q ensure=directory;
+                        cd /tmp/2232220q;
+                        git clone https://github.com/AmeerMus/2232220q_op_repo;
+                        targets=2232220q_uatsvr.localdomain;
+                        locate_script='/tmp/2232220q/2232220q_op_repo/2232220q_script';
+                        bolt script run $locate_script -t $targets -u clientadm -p 2232220q --no-host-key-check --run-as root;
+                    '''
 
-    		sh '''#!/bin/bash
-                 puppet resource file /tmp/2232220q ensure=absent force=true;
-                 puppet resource file /tmp/2232220q ensure=directory;
-	   cd /tmp/2232220q;
-	   git clone https://github.com/AmeerMus/2232220q_op_repo;
-                 targets=2232220q_uatsvr.localdomain;
-                 locate_script='/tmp/2232220q/2232220q_op_repo/2232220q_script';
-                 bolt script run $locate_script -t $targets -u clientadm -p 2232220q --no-host-key-check --run-as root;
-                 '''
-
-    echo "2232220q_OP_S1: UAT web server is backed up and updated"
-}
+                    echo "2232220q_OP_S1: uat web server is backup and updated"
+                }
             }
         }
-          stage('2232220q-op-s2') {
-        steps {
+
+        stage('2232220q_OP_S2') {
+            steps {
                 script {
-                    def politeID = "2232220q"
                     def uatsvrPort = "32500"
                     def resultFile = "/tmp/uatsvr-result-file"
 
                     echo "Executing web test for UAT server..."
                     sh "curl -Is http://localhost:${uatsvrPort} | head -n 1 > ${resultFile}"
-
                     def result = sh(script: "cat ${resultFile}", returnStdout: true).trim()
 
                     if (result.contains("HTTP/1.1 200 OK")) {
-                        echo "${politeID}_OP_S2: uat svr is running after update"
+                        echo "2232220q_OP_S2: uat svr is running"
                     } else {
-                        echo "${politeID}_OP_S2: uat svr fails"
+                        echo "2232220q_OP_S2: uat svr fails"
                         error("UAT web server test failed. Aborting pipeline.")
                     }
                 }
             }
         }
-          stage('2232220q-op-s3') {
-		steps {
-            input('Proceed with stress test on uat web server?')
-          }
-          }
 
-          stage('2232220q-op-s4') {
-          steps {
-            echo "Stress test result is good"
-                
-          }
-          }
-          stage('2232220q-op-s5') {
-          steps {
-                 input('<your polite ID>_OP_S5: Deploy new update to prod web server?') 
-          }
-          }
+        stage('2232220q_OP_S3') {
+            steps {
+                script {
+                    def proceed = input(message: 'Proceed with stress test on uat web server?', ok: 'Proceed', parameters: [choice(name: 'Decision', choices: ['Yes', 'No'])])
+                    if (proceed == 'No') {
+                        error("Aborting pipeline as stress test was not approved.")
+                    }
+                }
+            }
+        }
 
-	  stage('2232220q-op-s6') {
-          steps {
-            sh 'docker image rm -f 2232220q_prodsvr_image || true'
-	    sh 'docker commit 2232220q_prodsvr 2232220q_prodsvr_image'
+        stage('2232220q_OP_S4') {
+            steps {
+                echo "2232220q_OP_S4: Stress test result is good"
+            }
+        }
 
-		sh '''#!/bin/bash
-    puppet resource file /tmp/2232220q ensure=absent force=true;
-    puppet resource file /tmp/2232220q ensure=directory;
+        stage('2232220q_OP_S5') {
+            steps {
+                script {
+                    def proceed = input(message: 'Deploy new update to prod web server?', ok: 'Proceed', parameters: [choice(name: 'Decision', choices: ['Yes', 'No'])])
+                    if (proceed == 'No') {
+                        error("Aborting pipeline as deployment to prod was not approved.")
+                    }
+                }
+            }
+        }
 
-    cd /tmp/2232220q;
-    git clone https://github.com/AmeerMus/2232220q_op_repo;
+        stage('2232220q_OP_S6') {
+            steps {
+                script {
+                    echo "Removing old backup image..."
+                    sh 'docker image rm -f 2232220q_prodsvr_image || true'
 
-    targets=2232220q_prodsvr.localdomain;
-    locate_script='/tmp/2232220q/2232220q_op_repo/2232220q_script';
-    bolt script run $locate_script -t $targets -u clientadm -p 2232220q --no-host-key-check --run-as root;
-'''
+                    echo "Creating new backup image..."
+                    sh 'docker commit 2232220q_prodsvr 2232220q_prodsvr_image'
 
-    echo "2232220q_OP_S6: Prod web server is backup and updated"
-          }
-          }
-          stage('2232220q-op-s7') {
-    steps {
-        script {
-            def politeID = "2232220q"
-            def prodsvrPort = "32600"
-            def resultFile = "/tmp/prodsvr-result-file"
+                    sh '''#!/bin/bash
+                        puppet resource file /tmp/2232220q ensure=absent force=true;
+                        puppet resource file /tmp/2232220q ensure=directory;
+                        cd /tmp/2232220q;
+                        git clone https://github.com/AmeerMus/2232220q_op_repo;
+                        targets=2232220q_prodsvr.localdomain;
+                        locate_script='/tmp/2232220q/2232220q_op_repo/2232220q_script';
+                        bolt script run $locate_script -t $targets -u clientadm -p 2232220q --no-host-key-check --run-as root;
+                    '''
 
-            echo "Executing web test for PROD server..."
-            sh "curl -Is http://localhost:${prodsvrPort} | head -n 1 > ${resultFile}"
-            def result = sh(script: "cat ${resultFile}", returnStdout: true).trim()
+                    echo "2232220q_OP_S6: prod web server is backup and updated"
+                }
+            }
+        }
 
-            if (result.contains("HTTP/1.1 200 OK")) {
-                echo "2232220q_OP_S7: Production website is operational"
-            } else {
-                echo "2232220q_OP_S7: Production website failed!"
-                v2 = input(
-                    message: 'Action',
-                    parameters: [
-                        choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'])
-                    ]
-                )
+        stage('2232220q_OP_S7') {
+            steps {
+                script {
+                    def prodsvrPort = "32600"
+                    def resultFile = "/tmp/prodsvr-result-file"
 
-                if (v2 == "Trigger roll back") {
-                    echo "2232220q_OP_S7: Production website is rolling back"
-                } else {
-                    echo "2232220q_OP_S7: Troubleshooting of Production website is in progress"
+                    echo "Executing web test for PROD server..."
+                    sh "curl -Is http://localhost:${prodsvrPort} | head -n 1 > ${resultFile}"
+                    def result = sh(script: "cat ${resultFile}", returnStdout: true).trim()
+
+                    if (result.contains("HTTP/1.1 200 OK")) {
+                        echo "2232220q_OP_S7: Production website is operational"
+                    } else {
+                        echo "2232220q_OP_S7: Production website failed!"
+                        def action = input(message: 'Action required', parameters: [choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'])])
+
+                        if (action == "Trigger roll back") {
+                            echo "2232220q_OP_S7: Production website is rolling back"
+                        } else {
+                            echo "2232220q_OP_S7: Troubleshooting of Production website is in progress"
+                        }
+                    }
                 }
             }
         }
     }
-}
-}
 }
