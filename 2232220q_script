@@ -1,14 +1,36 @@
-#!/bin/bash
-apt-get update
-puppet resource package git ensure=present
+# Ensure apache2 is installed and running
+package { 'apache2':
+  ensure   => 'installed',
+  provider => 'apt',
+}
 
-puppet resource package apache2 ensure=present
-puppet resource service apache2 ensure=running
+service { 'apache2':
+  ensure   => 'running',
+  enable   => 'true',
+  provider => 'systemd',
+}
 
-puppet resource file /tmp/2232220q/research ensure=absent force=true
-puppet resource file /tmp/2232220q/research ensure=directory
+# Ensure git is installed
+package { 'git':
+  ensure   => 'installed',
+  provider => 'apt',
+}
 
+# Force remove the research folder if it exists
+file { '/tmp/2232220q/research':
+  ensure => 'absent',
+  provider => 'posix',
+  force   => true,  # Force removal of non-empty directory
+}
 
-cd /tmp/2232220q/
-git clone https://github.com/AmeerMus/2232220q_op_repo.git
-cp -p /tmp/2232220q/2232220q_op_repo/2232220q_index.html /var/www/html
+# Clone the repository into /tmp/2232220q/research
+exec { 'clone_repo':
+  command => '/usr/bin/git clone https://github.com/AmeerMus/2232220q_op_repo /tmp/2232220q/research',
+  unless  => '/usr/bin/test -d /tmp/2232220q/research',
+}
+
+# Ensure the index.html file is replaced
+file { '/var/www/html/index.html':
+  ensure  => 'file',
+  source  => 'file:///tmp/2232220q/research/2232220q_index.html',
+}
