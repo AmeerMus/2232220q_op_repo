@@ -1,50 +1,118 @@
 pipeline {
       agent any
       stages {
-          stage('One') {
+          stage('2232220q-op-s1') {
           steps {
-            echo 'Continue from previous phase: Ready to deploy next environment.'
-          }
-          }
-          stage('Two') {
-          steps {
-            input('Do you want to update to UAT container?')
-          }
-          }
-          stage('Three') {
-          steps {
-                 sh '''#!/bin/bash
-                 puppet resource file /tmp/clone ensure=absent force=true;
-                 puppet resource file /tmp/clone ensure=directory;
-	   cd /tmp/clone;
-	   git clone https://<your token>@github.com/<your repo>/devops_repo.git;
-                 targets=puppetclient1.localdomain;
-                 locate_script='/tmp/clone/devops_repo/script_to_run';
-                 bolt script run $locate_script -t $targets -u clientadm -p user123 --no-host-key-check --run-as root;
+            script {
+
+    		echo "Removing old backup image..."
+    		sh 'docker image rm -f 2232220q_uatsvr_image || true'
+
+   		echo "Creating new backup image..."
+    		sh 'docker commit 2232220q_uatsvr 2232220q_uatsvr_image'
+
+    		sh '''#!/bin/bash
+                 puppet resource file /tmp/2232220q ensure=absent force=true;
+                 puppet resource file /tmp/2232220q ensure=directory;
+	   cd /tmp/2232220q;
+	   git clone https://github.com/AmeerMus/2232220q_op_repo;
+                 targets=2232220q_uatsvr.localdomain;
+                 locate_script='/tmp/2232220q/2232220q_op_repo/2232220q_script';
+                 bolt script run $locate_script -t $targets -u clientadm -p 2232220q --no-host-key-check --run-as root;
                  '''
-                 echo "UAT container updated"
+
+    echo "2232220q_OP_S1: UAT web server is backed up and updated"
+}
+            }
+        }
+          stage('2232220q-op-s2') {
+        steps {
+                script {
+                    def politeID = "2232220q"
+                    def uatsvrPort = "32500"
+                    def resultFile = "/tmp/uatsvr-result-file"
+
+                    echo "Executing web test for UAT server..."
+                    sh "curl -Is http://localhost:${uatsvrPort} | head -n 1 > ${resultFile}"
+
+                    def result = sh(script: "cat ${resultFile}", returnStdout: true).trim()
+
+                    if (result.contains("HTTP/1.1 200 OK")) {
+                        echo "${politeID}_OP_S2: uat svr is running after update"
+                    } else {
+                        echo "${politeID}_OP_S2: uat svr fails"
+                        error("UAT web server test failed. Aborting pipeline.")
+                    }
+                }
+            }
+        }
+          stage('2232220q-op-s3') {
+		steps {
+            input('Proceed with stress test on uat web server?')
           }
           }
-          stage('Four') {
+
+          stage('2232220q-op-s4') {
           steps {
-            input('Do you want to deploy to Production container?')
+            echo "Stress test result is good"
                 
           }
           }
-          stage('Five') {
+          stage('2232220q-op-s5') {
           steps {
-                 sh '''#!/bin/bash
-                 targets=puppetclient2.localdomain;
-                 locate_script='/tmp/clone/devops_repo/script_to_run';
-                 bolt script run $locate_script -t $targets -u clientadm -p user123 --no-host-key-check --run-as root;
-                 '''
-                 echo "Production container updated"
+                 input('<your polite ID>_OP_S5: Deploy new update to prod web server?') 
           }
           }
-          stage('Completed updating Operation') {
+
+	  stage('2232220q-op-s6') {
           steps {
-            echo 'Completed updating to Production Container'
+            sh 'docker image rm -f 2232220q_prodsvr_image || true'
+	    sh 'docker commit 2232220q_prodsvr 2232220q_prodsvr_image'
+
+		sh '''#!/bin/bash
+    puppet resource file /tmp/2232220q ensure=absent force=true;
+    puppet resource file /tmp/2232220q ensure=directory;
+
+    cd /tmp/2232220q;
+    git clone https://github.com/AmeerMus/2232220q_op_repo;
+
+    targets=2232220q_prodsvr.localdomain;
+    locate_script='/tmp/2232220q/2232220q_op_repo/2232220q_script';
+    bolt script run $locate_script -t $targets -u clientadm -p 2232220q --no-host-key-check --run-as root;
+'''
+
+    echo "2232220q_OP_S6: Prod web server is backup and updated"
           }
           }
-      }
+          stage('2232220q-op-s7') {
+    steps {
+        script {
+            def politeID = "2232220q"
+            def prodsvrPort = "32600"
+            def resultFile = "/tmp/prodsvr-result-file"
+
+            echo "Executing web test for PROD server..."
+            sh "curl -Is http://localhost:${prodsvrPort} | head -n 1 > ${resultFile}"
+            def result = sh(script: "cat ${resultFile}", returnStdout: true).trim()
+
+            if (result.contains("HTTP/1.1 200 OK")) {
+                echo "2232220q_OP_S7: Production website is operational"
+            } else {
+                echo "2232220q_OP_S7: Production website failed!"
+                v2 = input(
+                    message: 'Action',
+                    parameters: [
+                        choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'])
+                    ]
+                )
+
+                if (v2 == "Trigger roll back") {
+                    echo "2232220q_OP_S7: Production website is rolling back"
+                } else {
+                    echo "2232220q_OP_S7: Troubleshooting of Production website is in progress"
+                }
+            }
+        }
+    }
+}
 }
