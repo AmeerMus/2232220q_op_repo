@@ -9,6 +9,6 @@ puppet resource file /tmp/2232220q/research ensure=absent force=true
 puppet resource file /tmp/2232220q/research ensure=directory
 
 
-cd /tmp/2232220q/2232220q_op_repo/
-git clone https://github.com/AmeerMus/2232220q_op_repo/blob/main/2232220q_script
+cd /tmp/2232220q/
+git clone https://github.com/AmeerMus/2232220q_op_repo.git
 cp -p /tmp/2232220q/2232220q_op_repo/2232220q_index.html /var/www/html
