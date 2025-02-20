@@ -102,7 +102,7 @@ pipeline {
                         echo "2232220q_OP_S7: Production website failed!"
 
                         def v2 = input (message: 'Action'
-                        parameters:[choice(name:",choices:['Deploy to Production Environment',Rollback'])]
+                        parameters:[choice(name:'Action',choices:['Deploy to Production Environment',Rollback'])]
                         )
 
                         if (action == "Trigger roll back") {
