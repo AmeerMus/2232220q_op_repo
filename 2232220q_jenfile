@@ -104,7 +104,7 @@ pipeline {
                         def v2 = input(
                         message: 'Action',
                         parameters: [
-                            choice(name: 'Action', choices: ['Deploy to Production Environment', Rollback'])
+                            choice(name: 'Action', choices: ['Trigger roll back', 'Troubleshooting'])
                             ]
                         )
 
