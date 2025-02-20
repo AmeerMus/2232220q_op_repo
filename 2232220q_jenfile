@@ -31,7 +31,7 @@ pipeline {
                     def resultFile = "/tmp/uatsvr-result-file"
 
                     echo "Executing web test for UAT server..."
-                    sh "curl -Is http://localhost:${uatsvrPort} | head -n 1 > ${resultFile}"
+                    sh "curl -Is http://localhost:32500 | head -n 1 > ${resultFile}"
                     def result = sh(script: "cat ${resultFile}", returnStdout: true).trim()
 
                     if (result.contains("HTTP/1.1 200 OK")) {
